@@ -3,37 +3,39 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
+use App\Http\Resources\ApiResourceTrait;
 
 class LoginController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Login Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller handles authenticating users for the application and
-    | redirecting them to your home screen. The controller uses a trait
-    | to conveniently provide its functionality to your applications.
-    |
-    */
+    use ApiResourceTrait;
 
-    use AuthenticatesUsers;
-
-    /**
-     * Where to redirect users after login.
-     *
-     * @var string
-     */
-    protected $redirectTo = '/home';
-
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-    public function __construct()
+    public function login(Request $request)
     {
-        $this->middleware('guest')->except('logout');
+        try {
+            $validated = $this->apiValidate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
+
+            if (! $token = auth()->attempt($validated)) {
+                return $this->error("Invalid Credentials", 404);
+                
+            }
+
+            return $this->api($this->getResponse($token));
+        } catch (\Exception $e) {
+            return $this->safeError($e);
+        }
+    }
+
+    protected function getResponse($token)
+    {
+        return [
+            'user' => auth()->user(),
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => auth()->factory()->getTTL() * 60
+        ];
     }
 }
